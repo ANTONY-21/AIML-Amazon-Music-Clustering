@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Large generated outputs (keep plots + small CSVs only)
+# Comment the next line out if you want to commit the labelled CSV too.
+# outputs/songs_with_clusters.csv
+
+# Source dataset (download separately - too large for GitHub)
+single_genre_artists.csv
+
+# Guvi briefing documents (not for public repo)
+*.docx

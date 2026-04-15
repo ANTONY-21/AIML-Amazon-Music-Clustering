@@ -1,0 +1,4 @@
+cluster,danceability,energy,loudness,speechiness,acousticness,instrumentalness,liveness,valence,tempo,duration_ms,n_songs,mood_label
+0,0.627,0.694,-7.594,0.075,0.259,0.049,0.2,0.663,124.608,227329.195,10980,Happy / Upbeat
+1,0.487,0.311,-13.221,0.06,0.756,0.169,0.18,0.413,112.146,222991.401,6402,Acoustic / Chill
+2,0.665,0.465,-13.39,0.827,0.589,0.003,0.432,0.586,101.04,96081.89,2618,Speech / Spoken-word / Hip-hop
