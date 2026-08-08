@@ -33,7 +33,7 @@ Read this in order — it covers every section the **Capstone Explanation Guidel
 - Dropped **identifier / text columns** (`id_songs`, `name_song`, `name_artists`, `genres`, `release_date`) — they don't help distance-based clustering
 - Removed **null values** in audio features (very few)
 - Removed **duplicate rows** based on the audio features
-- Used a **20,000 random sample** for development speed (clustering on 96k is slow; sampling preserves the distribution)
+- Final KMeans model is fit on **ALL songs** (KMeans scales linearly); DBSCAN and Hierarchical are compared on **random subsamples** (20k / 3k) because they are O(n²)-ish in time/memory
 
 ### 1.6 EDA findings (1–2 lines per finding)
 - **Distributions** — `acousticness` and `instrumentalness` are heavily skewed toward 0; `loudness` is in dB (negative); `duration_ms` has a long tail
@@ -171,8 +171,8 @@ The evaluator will pick a few of these. Read every answer aloud once.
 ### What is `random_state=42` for?
 > "It seeds the random number generator so results are reproducible. Same seed → same centroid initialisation → same final clusters."
 
-### Why did you sample 20,000 rows instead of using all 96,000?
-> "Speed during development. KMeans scales linearly but silhouette is O(n²). 20k rows is large enough to be statistically representative and runs in seconds. For the final model you'd run on the full dataset."
+### Did you cluster all 96,000 songs or a sample?
+> "The final KMeans model is fit on the full dataset, so every song in the exported CSV has a cluster label. Only the comparison algorithms run on subsamples: DBSCAN on 20k rows and hierarchical on 3k rows, because they are quadratic in time or memory. Silhouette is also O(n²), so I compute it on a 5,000-point random sample — a standard practice supported directly by scikit-learn's `sample_size` parameter."
 
 ### Did you test the model accuracy?
 > "Accuracy doesn't apply here — it's unsupervised, there's no ground truth. I evaluated cluster **quality** with silhouette, Davies-Bouldin and Calinski-Harabasz, and **interpretability** by profiling the cluster means."
@@ -181,7 +181,7 @@ The evaluator will pick a few of these. Read every answer aloud once.
 > "Each step of the pipeline is its own function: `load_data`, `clean_data`, `scale_features`, `find_optimal_k`, `run_kmeans`, `run_dbscan`, `evaluate_clustering`, `profile_clusters`, `export_results`. Each function does one job, can be tested or reused independently, and `main()` just orchestrates them."
 
 ### What are the limitations of your project?
-> "1) The 'mood' labels are heuristic, not learned. 2) KMeans assumes spherical clusters — real music taste is fuzzier. 3) I sampled 20k rows — production should use the full dataset. 4) DBSCAN was barely tuned (only one eps value tried). 5) No content-based features like lyrics or artist embeddings."
+> "1) The 'mood' labels are heuristic, not learned. 2) KMeans assumes spherical clusters — real music taste is fuzzier. 3) DBSCAN was barely tuned (only one eps value tried) and only on a 20k subsample. 4) No content-based features like lyrics or artist embeddings."
 
 ### How would you improve it?
 > "1) Try Gaussian Mixture Models (soft cluster assignment). 2) Use **t-SNE** or **UMAP** instead of PCA for non-linear visualisation. 3) Add lyric embeddings using a sentence transformer. 4) A/B test the recommendations against a baseline."

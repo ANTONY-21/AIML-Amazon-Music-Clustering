@@ -12,7 +12,7 @@ The app reads the files written by clustering.py:
     outputs/model_scores.csv
 
 Features:
-    - Sidebar filter to pick a cluster
+    - Cluster picker (top of the page)
     - KPI cards (number of clusters, songs, best silhouette)
     - Cluster profile table
     - Mean-feature bar chart per cluster (radar-style)
@@ -32,7 +32,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 # ---------------------------------------------------------------------------
-OUTPUT_DIR = "outputs"
+# Resolve paths relative to this file so the app works from any launch dir.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
 SONGS_FILE = os.path.join(OUTPUT_DIR, "songs_with_clusters.csv")
 PROFILE_FILE = os.path.join(OUTPUT_DIR, "cluster_profile.csv")
 SCORES_FILE = os.path.join(OUTPUT_DIR, "model_scores.csv")
@@ -71,13 +73,26 @@ if songs is None:
     st.stop()
 
 # ---------------------------------------------------------------------------
-# Sidebar
+# Cluster picker (main page - renders reliably on every Streamlit version)
 # ---------------------------------------------------------------------------
-st.sidebar.header("Filters")
 cluster_options = sorted(songs["cluster"].unique())
-selected_cluster = st.sidebar.selectbox(
+
+
+def _cluster_label(option):
+    """Show 'Cluster 2 — Happy / Upbeat' instead of a bare number."""
+    if option == "All":
+        return "All clusters"
+    if "mood_label" in songs.columns:
+        mood = songs.loc[songs["cluster"] == option, "mood_label"].iloc[0]
+        return f"Cluster {option} — {mood}"
+    return f"Cluster {option}"
+
+
+picker_col, _ = st.columns([1, 2])
+selected_cluster = picker_col.selectbox(
     "Select a cluster",
     options=["All"] + [int(c) for c in cluster_options],
+    format_func=_cluster_label,
 )
 
 # ---------------------------------------------------------------------------
@@ -116,7 +131,8 @@ fig, ax = plt.subplots(figsize=(10, 4))
 # Normalize to 0..1 for visual comparison (loudness/tempo/duration are off-scale)
 norm = (mean_df - songs[AUDIO_FEATURES].min()) / \
        (songs[AUDIO_FEATURES].max() - songs[AUDIO_FEATURES].min())
-sns.barplot(x=norm.index, y=norm.values, ax=ax, palette="viridis")
+sns.barplot(x=norm.index, y=norm.values, hue=norm.index, palette="viridis",
+            legend=False, ax=ax)
 ax.set_ylim(0, 1)
 ax.set_ylabel("normalised value (0..1)")
 ax.set_title(title)
@@ -147,7 +163,7 @@ st.pyplot(fig)
 # ---------------------------------------------------------------------------
 st.subheader("Songs in the selected cluster")
 if selected_cluster == "All":
-    st.info("Pick a cluster from the sidebar to see its top songs.")
+    st.info("Pick a cluster at the top of the page to see its top songs.")
 else:
     sub = songs[songs["cluster"] == selected_cluster]
     cols = [c for c in

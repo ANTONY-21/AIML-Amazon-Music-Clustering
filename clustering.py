@@ -12,13 +12,17 @@ Pipeline (each step is a function so the code is modular and reusable):
     4. visualize_features   -> distribution + correlation heatmap (EDA plots)
     5. scale_features       -> StandardScaler (clustering is distance-based)
     6. find_optimal_k       -> Elbow method + Silhouette score
-    7. run_kmeans           -> final KMeans with chosen k
+    7. run_kmeans           -> final KMeans with chosen k on the FULL dataset
     8. run_dbscan           -> density-based clustering (finds noise/outliers)
     9. run_hierarchical     -> agglomerative clustering (+ dendrogram on sample)
    10. evaluate_clustering  -> Silhouette, Davies-Bouldin, Calinski-Harabasz
    11. reduce_pca           -> PCA(2) for 2D visualization
    12. profile_clusters     -> mean feature value per cluster -> human label
    13. export_results       -> save labeled CSV + cluster profile CSV
+
+The final KMeans model is fit on ALL songs so every row in the exported CSV
+gets a cluster label. DBSCAN and Hierarchical are O(n^2)-ish, so they are
+compared on random subsamples (documented in the report).
 
 Run from terminal:
     pip install -r requirements.txt
@@ -48,8 +52,10 @@ sns.set_style("whitegrid")
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DATA_PATH = "single_genre_artists.csv"
-OUTPUT_DIR = "outputs"
+# Resolve paths relative to this file so the script works from any launch dir.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "single_genre_artists.csv")
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
 PLOTS_DIR = os.path.join(OUTPUT_DIR, "plots")
 
 # Audio features used for clustering. These describe HOW a song sounds
@@ -68,8 +74,10 @@ AUDIO_FEATURES = [
     "duration_ms",
 ]
 
-# For speed during development you can sample. Set to None to use all rows.
-SAMPLE_SIZE = 20000          # KMeans on 20k rows is fast and still representative
+# KMeans scales to the full ~96k rows easily, so the final model uses ALL
+# songs. DBSCAN / Hierarchical need pairwise-distance style work, so they are
+# benchmarked on a random subsample of this size instead.
+COMPARE_SAMPLE = 20000
 RANDOM_STATE = 42
 
 
@@ -281,8 +289,10 @@ def reduce_pca(X: np.ndarray, labels: np.ndarray, name: str) -> None:
     X2 = pca.fit_transform(X)
     plt.figure(figsize=(9, 7))
     palette = sns.color_palette("tab10", n_colors=max(len(set(labels)), 3))
+    # Smaller markers when plotting the full ~96k songs so the plot stays readable
+    size, alpha = (6, 0.35) if len(X2) > 30000 else (12, 0.6)
     sns.scatterplot(x=X2[:, 0], y=X2[:, 1], hue=labels, palette=palette,
-                    s=12, alpha=0.6, legend="full")
+                    s=size, alpha=alpha, legend="full")
     plt.title(f"{name} clusters (PCA 2D projection)")
     plt.xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}% var)")
     plt.ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}% var)")
@@ -356,25 +366,24 @@ def main():
     explore_data(df)
     df = clean_data(df)
 
-    if SAMPLE_SIZE and len(df) > SAMPLE_SIZE:
-        df = df.sample(SAMPLE_SIZE, random_state=RANDOM_STATE).reset_index(drop=True)
-        print(f"    using random sample of {SAMPLE_SIZE} rows for speed")
-
     visualize_features(df)
     X, _ = scale_features(df)
 
     best_k = find_optimal_k(X)
 
-    # ---- KMeans (final model) ----
+    # ---- KMeans (final model, fit on ALL songs) ----
     km_labels = run_kmeans(X, best_k)
     scores = []
     scores.append(evaluate_clustering(X, km_labels, "KMeans"))
     reduce_pca(X, km_labels, "KMeans")
 
-    # ---- DBSCAN ----
-    db_labels = run_dbscan(X)
-    scores.append(evaluate_clustering(X, db_labels, "DBSCAN"))
-    reduce_pca(X, db_labels, "DBSCAN")
+    # ---- DBSCAN (compared on a random subsample - O(n^2)-ish on full data) ----
+    rng = np.random.default_rng(RANDOM_STATE)
+    idx = rng.choice(len(X), size=min(COMPARE_SAMPLE, len(X)), replace=False)
+    Xs = X[idx]
+    db_labels = run_dbscan(Xs)
+    scores.append(evaluate_clustering(Xs, db_labels, "DBSCAN"))
+    reduce_pca(Xs, db_labels, "DBSCAN")
 
     # ---- Hierarchical (on subsample) ----
     hc_labels, hc_X = run_hierarchical(X, best_k)

@@ -12,9 +12,10 @@ env/
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / assistant
 .vscode/
 .idea/
+.claude/
 
 # Streamlit
 .streamlit/secrets.toml
@@ -28,3 +29,5 @@ single_genre_artists.csv
 
 # Guvi briefing documents (not for public repo)
 *.docx
+# ...but DO commit the final project report
+!Final_Report.docx
