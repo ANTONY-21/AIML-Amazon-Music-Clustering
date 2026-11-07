@@ -30,6 +30,7 @@ import seaborn as sns
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from music_similarity import find_matches, nearest_in_cluster
 
 # ---------------------------------------------------------------------------
 # Resolve paths relative to this file so the app works from any launch dir.
@@ -174,24 +175,24 @@ else:
     st.dataframe(sub[cols].head(50), use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# Recommend similar songs (same cluster)
+# Find similar songs by feature distance within the selected cluster.
 # ---------------------------------------------------------------------------
 st.subheader("🎧 Find similar songs")
-if "name_song" in songs.columns:
-    track = st.selectbox("Pick a song",
-                         options=sorted(songs["name_song"].dropna().unique())[:2000])
-    if track:
-        row = songs[songs["name_song"] == track].iloc[0]
-        st.write(f"**{track}** belongs to cluster **{row['cluster']}** "
-                 f"({row.get('mood_label', '')})")
-        sims = songs[(songs["cluster"] == row["cluster"]) &
-                     (songs["name_song"] != track)]
-        if "popularity_songs" in sims.columns:
-            sims = sims.sort_values("popularity_songs", ascending=False)
-        st.dataframe(sims[[c for c in
-                           ["name_song", "name_artists", "popularity_songs"]
-                           if c in sims.columns]].head(20),
-                     use_container_width=True)
+if {"name_song", "name_artists"}.issubset(songs.columns):
+    st.caption("Search the full dataset by song or artist. Results are ranked by distance across standardized audio features within the same cluster; a smaller distance means a closer feature match.")
+    query = st.text_input("Search for a song or artist", placeholder="Enter a song title or artist")
+    matches = find_matches(songs, query)
+    if query.strip() and matches.empty:
+        st.info("No matching songs were found.")
+    elif not matches.empty:
+        st.caption(f"Showing up to {len(matches)} matching tracks, sorted by popularity. Refine your search if needed.")
+        selected = st.selectbox("Choose a track", matches.index.tolist(),
+                                format_func=lambda i: f"{matches.loc[i, 'name_song']} — {matches.loc[i, 'name_artists']} (ID {matches.loc[i, 'id_songs']})")
+        row = songs.loc[selected]
+        st.write(f"**{row['name_song']}** by **{row['name_artists']}** belongs to cluster **{row['cluster']}** ({row.get('mood_label', '')}).")
+        sims = nearest_in_cluster(songs, AUDIO_FEATURES, selected)
+        st.dataframe(sims[[c for c in ['name_song', 'name_artists', 'popularity_songs', 'audio_distance'] if c in sims.columns]],
+                     use_container_width=True, hide_index=True)
 
 st.divider()
 st.caption("Built with KMeans / DBSCAN / Hierarchical clustering on audio features.")

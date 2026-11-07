@@ -31,6 +31,7 @@ AIML_Amazon Music Clustering/
 ├── single_genre_artists.csv     # raw data
 ├── clustering.py                # full modular pipeline
 ├── app.py                       # Streamlit dashboard
+├── music_similarity.py          # search and audio-distance ranking
 ├── requirements.txt
 ├── README.md
 ├── INTERVIEW_GUIDE.md           # questions you'll be asked + answers
@@ -59,6 +60,8 @@ python clustering.py
 # 3. launch the dashboard
 streamlit run app.py
 ```
+
+In the dashboard's **Find similar songs** section, search by title or artist, then select the exact track. The app searches the complete saved dataset and ranks other tracks in the same cluster by Euclidean distance across standardized audio features. Smaller distances indicate closer matches in this feature space; they are not proof that listeners will consider the songs similar. Cluster mood labels are human interpretations, not verified genres.
 
 ## 6. Results
 - Silhouette peaks at **k = 3** (0.2465); the final KMeans model is fit on **all 94,098 songs**
